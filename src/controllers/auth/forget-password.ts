@@ -17,16 +17,14 @@ const ForgetPassword = async (req: Request, res: Response): Promise<Response> =>
     
     const token = generateTokenResponse(user);
     
-    return sendEmail(
+    await sendEmail(
       user.email,
       user.name,
       "Password Recovery",
       signupTemplate(user.email, token.token)
-    )
-      .then(() => res.status(200).json("email sent"))
-      .catch((err: Error) => {
-        res.status(404).json(err.message);
-      });
+    );
+
+    return res.status(200).json("email sent");
   } catch (err) {
     return res.status(500).json((err as Error).message);
   }

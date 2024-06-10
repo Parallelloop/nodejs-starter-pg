@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 
-export const sendEmail = async (email, userName, subject, bodyPart) => {
+export const sendEmail = async (email: string, userName: string, subject: string, bodyPart: any) => {
   let transporter = nodemailer.createTransport({
     host: "your host name goes here",
     secureConnection: false,

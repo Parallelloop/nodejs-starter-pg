@@ -1,11 +1,14 @@
-import Sequelize from 'sequelize';
+import { Sequelize, DataTypes } from 'sequelize';
 import * as files from './models';
-import MYDB from '../config/config.js';
+import MYDB from '../config/config';
+interface DB {
+  [key: string]: any;
+}
+const db: DB = {};
 
-let db = {};
 const sequelize = new Sequelize(MYDB.DB_NAME, MYDB.DB_USERNAME, MYDB.DB_PASSWORD, {
   host: MYDB.DB_HOST,
-  dialect: MYDB.DB_DIALECT,
+  dialect: MYDB.DB_DIALECT as any,
   port: MYDB.DB_PORT,
   dialectOptions: {
     connectTimeout: 50000
@@ -22,7 +25,7 @@ const sequelize = new Sequelize(MYDB.DB_NAME, MYDB.DB_USERNAME, MYDB.DB_PASSWORD
 });
 
 Object.keys(files).forEach((fileName) => {
-  const model = files[fileName](sequelize, Sequelize.DataTypes);
+  const model = (files as Record<string, Function>)[fileName](sequelize, DataTypes);
   db[model.name] = model;
 });
 
@@ -35,6 +38,6 @@ Object.keys(db).forEach((modelName) => {
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
-// sequelize.sync();
+sequelize.sync();
 
 export default db;

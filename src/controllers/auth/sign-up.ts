@@ -2,13 +2,8 @@ import DB from "../../database";
 import bcrypt from "bcryptjs";
 import { generateTokenResponse } from "../../middlewares/auth";
 import { Request, Response } from 'express';
+import { SignUpRequest } from "../../interfaces";
 
-interface SignUpRequest extends Request {
-  body: {
-    email: string;
-    password: string;
-  };
-}
 
 const SignUp = async (req: SignUpRequest, res: Response): Promise<Response> => {
   try {

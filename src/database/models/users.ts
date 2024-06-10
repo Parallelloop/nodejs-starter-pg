@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 
-const Users = (sequelize, DataTypes) => {
+const Users = (sequelize: any, DataTypes: any) => {
   const Users = sequelize.define("users", {
     email: {
       type: DataTypes.STRING(100),
@@ -9,7 +9,7 @@ const Users = (sequelize, DataTypes) => {
       type: DataTypes.STRING(),
     },
   });
-  Users.prototype.validatePassword = function (candidatePassword) {
+  Users.prototype.validatePassword = function (candidatePassword: any) {
     return bcrypt.compareSync(candidatePassword, this.password);
   };
   return Users;

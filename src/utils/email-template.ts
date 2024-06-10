@@ -1,6 +1,6 @@
 const { APP_LINK } = process.env;
 
-export const signupTemplate = (userName, token) => `<html>
+export const signupTemplate = (userName: string, token: string) => `<html>
 <head>
 <title></title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />

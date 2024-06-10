@@ -1,14 +1,7 @@
 import DB from "../../database";
 import bcrypt from "bcryptjs";
 import { Request, Response } from 'express';
-
-interface UpdatePasswordRequest extends Request {
-  body: {
-    email: string;
-    password: string;
-    newPassword: string;
-  };
-}
+import { UpdatePasswordRequest } from "../../interfaces";
 
 const updatePassword = async (req: UpdatePasswordRequest, res: Response): Promise<Response> => {
   const { email, password, newPassword } = req.body;
