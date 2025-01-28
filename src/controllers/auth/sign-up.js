@@ -5,7 +5,7 @@ import { generateTokenResponse } from "../../middlewares/auth";
 const SignUp = async (req, res) => {
   try {
     const {
-      body: { email, password },
+      body: { email, password, firstName, lastName },
     } = req;
     if (!email || !password)
       return res.status(400).json("email, password required");
@@ -17,6 +17,8 @@ const SignUp = async (req, res) => {
     const userPassword = bcrypt.hashSync(password, 10);
     user = await DB.users.create({
       email,
+      firstName,
+      lastName,
       password: userPassword,
     });
     const result = await user.save();
