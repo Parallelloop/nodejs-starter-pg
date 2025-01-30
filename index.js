@@ -1,10 +1,15 @@
 import 'dotenv/config';
 import express from 'express';
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 
 import applyMiddlewares from './src/middlewares';
 import router from './src/routes';
 
 const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 applyMiddlewares(app);
 
