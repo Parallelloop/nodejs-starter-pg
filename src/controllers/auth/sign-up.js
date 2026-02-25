@@ -7,8 +7,7 @@ const SignUp = async (req, res) => {
     const {
       body: { email, password },
     } = req;
-    if (!email || !password)
-      return res.status(400).json("email, password required");
+    if (!email || !password) return res.status(400).json("email, password required");
 
     let user = await DB.users.findOne({ where: { email } });
     if (user) {

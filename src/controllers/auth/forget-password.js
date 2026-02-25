@@ -17,7 +17,7 @@ const ForgetPassword = async (req, res) => {
       user.email,
       user.name,
       "Password Recovery",
-      signupTemplate(user.email, token.token)
+      signupTemplate(user.email, token.token),
     )
       .then(() => res.status(200).json("email sent"))
       .catch((err) => {

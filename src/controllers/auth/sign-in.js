@@ -1,4 +1,4 @@
-import { generateTokenResponse } from '../../middlewares/auth';
+import { generateTokenResponse } from "../../middlewares/auth";
 
 const SignIn = async (req, res) => {
   try {
@@ -6,7 +6,7 @@ const SignIn = async (req, res) => {
     const token = generateTokenResponse(req.user);
     return res.status(200).json({
       token,
-      user: req.user
+      user: req.user,
     });
   } catch (err) {
     return res.status(500).json({ message: err.message });

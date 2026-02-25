@@ -1,6 +1,6 @@
-import Sequelize from 'sequelize';
-import * as files from './models';
-import MYDB from '../config/config.js';
+import Sequelize from "sequelize";
+import * as files from "./models";
+import MYDB from "../config/config.js";
 
 let db = {};
 const sequelize = new Sequelize(MYDB.DB_NAME, MYDB.DB_USERNAME, MYDB.DB_PASSWORD, {
@@ -8,17 +8,17 @@ const sequelize = new Sequelize(MYDB.DB_NAME, MYDB.DB_USERNAME, MYDB.DB_PASSWORD
   dialect: MYDB.DB_DIALECT,
   port: MYDB.DB_PORT,
   dialectOptions: {
-    connectTimeout: 50000
+    connectTimeout: 50000,
   },
   pool: {
     max: 150,
     min: 0,
-    idle: 10000
+    idle: 10000,
   },
   define: {
-    timestamps: true
+    timestamps: true,
   },
-  logging: false
+  logging: false,
 });
 
 Object.keys(files).forEach((fileName) => {

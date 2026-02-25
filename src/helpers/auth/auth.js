@@ -1,5 +1,3 @@
-const auth = (data, name) => {
-
-};
+const auth = (_data, _name) => {};
 
 export default auth;

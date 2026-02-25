@@ -5,7 +5,7 @@ import { Strategy as JWTstrategy, ExtractJwt } from "passport-jwt";
 import DB from "../database";
 const { JWT_SECRET } = process.env;
 
-const generateTokenResponse = ({ id, email, name }, verify = false) => {
+const generateTokenResponse = ({ id, email, name }, _verify = false) => {
   let expiryTime = "365d";
   return {
     token: jwt.sign({ id, email, name }, JWT_SECRET, {
@@ -44,7 +44,7 @@ const LocalLoginStrategy = new LocalStrategy(
     } catch (err) {
       done(err);
     }
-  }
+  },
 );
 
 // ============================ JWT Strategy ============================ //
@@ -63,12 +63,7 @@ const AuthenticationStrategy = new JWTstrategy(
     } catch (err) {
       done(err, false);
     }
-  }
+  },
 );
 
-export {
-  AuthenticationStrategy,
-  LocalLoginStrategy,
-  generateTokenResponse,
-  authenticateAuthToken,
-};
+export { AuthenticationStrategy, LocalLoginStrategy, generateTokenResponse, authenticateAuthToken };

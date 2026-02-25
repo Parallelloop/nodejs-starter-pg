@@ -1,5 +1,4 @@
 import DB from "../../database";
-import bcrypt from "bcryptjs";
 
 const updatePassword = async (req, res) => {
   const { email, password, newPassword } = req.body;
