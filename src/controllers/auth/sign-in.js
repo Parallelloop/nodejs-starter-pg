@@ -5,7 +5,7 @@ const SignIn = async (req, res) => {
     if (req.error) return res.status(401).json(req.error);
     const token = generateTokenResponse(req.user);
     return res.status(200).json({
-      token,
+      token: token.token,
       user: req.user,
     });
   } catch (err) {

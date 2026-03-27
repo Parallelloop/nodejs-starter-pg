@@ -14,8 +14,8 @@ const loginCheck = (req, res, next) => {
   })(req, res, next);
 };
 
-router.post("/signin", loginCheck, SignIn);
-router.post("/signup", SignUp);
-router.post("/forgetpassword", ForgetPassword);
-router.put("/resetpassword", authenticateAuthToken, ResetPassword);
+router.post("/sign-in", loginCheck, SignIn);
+router.post("/sign-up", SignUp);
+router.post("/forget-password", ForgetPassword);
+router.put("/reset-password", authenticateAuthToken, ResetPassword);
 export default router;
