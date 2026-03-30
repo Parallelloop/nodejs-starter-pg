@@ -5,7 +5,17 @@ const GetWorkspaceRepo = async (req, res) => {
     const { workspaceId } = req.query;
     if (!workspaceId) return res.status(400).json({ message: "workspaceId is required" });
 
-    const workspaceRepos = await DB.workspaceRepos.findAll({ where: { workspaceId } });
+    const workspaceRepos = await DB.workspaceRepos.findAll({ 
+      where: { workspaceId },
+      include: [
+        { model: DB.slackChannels, as: "slackChannel" },
+        { 
+          model: DB.workspaceRepoBoards, 
+          as: "workspaceRepoBoards",
+          include: [{ model: DB.jiraBoards, as: "jiraBoard" }]
+        }
+      ]
+    });
     return res.status(200).json(workspaceRepos || []);
   } catch (err) {
     return res.status(500).json({ message: err.message });

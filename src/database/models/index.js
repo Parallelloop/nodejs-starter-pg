@@ -8,16 +8,22 @@ import decisionLogs from "./decisionLogs";
 import githubRepos from "./githubRepos";
 import workspaceRepos from "./workspaceRepos";
 import slackChannels from "./slackChannels";
+import sopGuard from "./sopGuard";
+import jiraBoards from "./jiraBoards";
+import workspaceRepoBoards from "./workspaceRepoBoards";
 
-export { 
-  users, 
-  integrations, 
-  workspaces, 
-  members, 
-  contextNodes, 
-  relationships, 
-  decisionLogs, 
-  githubRepos, 
+export {
+  users,
+  integrations,
+  workspaces,
+  members,
+  contextNodes,
+  relationships,
+  decisionLogs,
+  githubRepos,
   workspaceRepos,
-  slackChannels
+  slackChannels,
+  sopGuard,
+  jiraBoards,
+  workspaceRepoBoards
 };

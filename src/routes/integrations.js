@@ -11,7 +11,8 @@ import {
   JiraAuth, JiraCallback,
   ClickupAuth, ClickupCallback,
   SyncGitHubRepos, GetGitHubRepos,
-  GetWorkspaceRepo, AssignWorkspaceRepo, GetGitHubRepoStats
+  GetWorkspaceRepo, AssignWorkspaceRepo, GetGitHubRepoStats,
+  SyncJiraBoards, JiraGetBoards, LinkRepoBoard
 } from "../controllers/integrations";
 
 const router = express.Router();
@@ -44,5 +45,9 @@ router.get("/github/repo-stats", authenticateAuthToken, GetGitHubRepoStats);
 router.post("/slack/sync-channels", authenticateAuthToken, SlackSyncChannels);
 router.get("/slack/channels", authenticateAuthToken, GetSlackChannels);
 router.post("/workspace-repo/link-slack", authenticateAuthToken, LinkRepoSlack);
+
+router.post("/jira/sync-boards", authenticateAuthToken, SyncJiraBoards);
+router.get("/jira/boards", authenticateAuthToken, JiraGetBoards);
+router.post("/workspace-repo/link-jira", authenticateAuthToken, LinkRepoBoard);
 
 export default router;

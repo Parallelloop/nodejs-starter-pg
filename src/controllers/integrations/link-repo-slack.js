@@ -25,7 +25,16 @@ const LinkRepoSlack = async (req, res) => {
       }
     });
 
-    wsRepo.slackChannelId = channelId || null;
+    if (channelId) {
+      const slackChannel = await DB.slackChannels.findOne({ where: { id: channelId, userId } });
+      if (!slackChannel) {
+        return res.status(404).json({ message: "Slack channel not found. Please sync channels first." });
+      }
+      wsRepo.slackChannelId = slackChannel.id;
+    } else {
+      wsRepo.slackChannelId = null;
+    }
+
     await wsRepo.save();
 
     return res.status(200).json({ message: "Slack channel linked to repository successfully", wsRepo });

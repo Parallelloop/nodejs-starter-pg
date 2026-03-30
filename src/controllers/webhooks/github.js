@@ -1,118 +1,174 @@
 import DB from "../../database";
-import { hybridSearch } from "../../utils/retrieval";
+import { getJiraCloudId, fetchActiveJiraTasks, refreshJiraToken } from "../../utils/jira";
 
-async function generateEmbedding(text) {
-    let embedding = new Array(1536).fill(0);
-    const str = text.toLowerCase();
-    for (let i = 0; i < str.length; i++) {
-        const index = (i * str.charCodeAt(i)) % 1536;
-        embedding[index] = (embedding[index] + str.charCodeAt(i) / 255) / 2;
-    }
-    return embedding;
-}
-
-async function triggerSlackRequest(githubUser, message, workspaceId) {
-    console.log(`[Slack Simulation] Sending DM to ${githubUser}: ${message}`);
-}
-
-async function linkPrToJira(prId, jiraId, workspaceId, confidence) {
-    // Attempt logic to find node or create raw representations
-    // For POC, we just insert the edge pretending the nodes exist
-    // However, source/target must be integers now, not strings? 
-    // Wait, in api-kore we made contextNodes return Sequelize INTEGER but let's just create nodes if they don't exist
-    // to strictly preserve the relationships.
-    
-    let prNode = await DB.contextNodes.findOne({ where: { type: 'github', metadata: { prId } } });
-    if (!prNode) {
-         prNode = await DB.contextNodes.create({
+async function triggerSopGuard(pull_request, repository, workspaceId, reason, detail) {
+    try {
+        // 1. Log as Knowledge Gap / Decision Log (Internal to App)
+        await DB.decisionLogs.create({
             workspaceId,
-            type: 'github',
-            content: `PR ${prId}`,
-            metadata: { prId },
-            embedding: await generateEmbedding(`PR ${prId}`)
-         });
-    }
-
-    let jiraNode = await DB.contextNodes.findOne({ where: { type: 'jira', metadata: { key: jiraId } } });
-    if (!jiraNode) {
-        jiraNode = await DB.contextNodes.create({
-           workspaceId,
-           type: 'jira',
-           content: `Jira Ticket ${jiraId}`,
-           metadata: { key: jiraId },
-           embedding: await generateEmbedding(`Jira Ticket ${jiraId}`)
+            title: `SOP Guard: ${reason}`,
+            rationale: detail,
+            linkedPrId: pull_request.html_url
         });
+    } catch (err) {
+        console.error("Internal SOP Guard logging failed: ", err.message);
     }
-
-    await DB.relationships.create({
-        workspaceId,
-        sourceNodeId: prNode.id,
-        targetNodeId: jiraNode.id,
-        relationshipType: 'implemented_by',
-        metadata: { confidence, source: 'webhook_pipeline' }
-    });
 }
 
 const HandlePrMerge = async (req, res) => {
+    // 1. Log Raw Request for Debugging
+    console.log("--- WEBHOOK RECEIVED ---");
+    console.log("Headers:", JSON.stringify(req.headers, null, 2));
+
+    // GitHub with 'application/x-www-form-urlencoded' sends the JSON in a 'payload' field
+    let payload = req.body;
+    if (req.body.payload && typeof req.body.payload === 'string') {
+        try {
+            payload = JSON.parse(req.body.payload);
+        } catch (e) {
+            console.error("Failed to parse GitHub form-encoded payload JSON");
+        }
+    }
+
+    console.log("Event:", req.headers["x-github-event"]);
+    console.log("Action:", payload.action);
+    console.log("PR ID:", payload.pull_request?.html_url);
+    console.log("------------------------");
+
     try {
-        const { pull_request, repository } = req.body;
-        const workspaceId = req.query.workspaceId; // webhooks generally use query params or path for workspace binding
+        const { action, pull_request, repository } = payload;
+        const repoFullName = repository?.full_name;
 
-        if (!pull_request || !workspaceId) {
-            return res.status(400).json({ error: "Missing payload or workspaceId" });
+        if (!pull_request || !repoFullName) {
+            return res.status(200).json({ status: 'ignored_no_pr_or_repo', action });
         }
 
-        const prDescription = pull_request.body || "";
-        const branchName = pull_request.head?.ref || "";
         const prId = pull_request.html_url;
+        const branchName = pull_request.head?.ref || "unknown";
 
-        // 1. Extract Jira ID using Regex
-        const jiraRegex = /[A-Z]+-[0-9]+/g;
-        const matches = [...prDescription.matchAll(jiraRegex), ...branchName.matchAll(jiraRegex)];
-        const jiraIds = Array.from(new Set(matches.map(m => m[0])));
+        // Fetch workspaceRepo using only the repository name (enables standard webhook URLs)
+        const workspaceRepo = await DB.workspaceRepos.findOne({
+            where: { repoFullName },
+            include: [
+                { model: DB.workspaces },
+                { 
+                    model: DB.workspaceRepoBoards, 
+                    as: "workspaceRepoBoards",
+                    include: [{ model: DB.jiraBoards, as: "jiraBoard" }]
+                }
+            ]
+        });
 
-        if (jiraIds.length > 0) {
-            // High confidence: Link directly
-            for (const jiraId of jiraIds) {
-                await linkPrToJira(prId, jiraId, workspaceId, 1.0);
+        if (!workspaceRepo) {
+            console.error(`Rejected webhook for ${repoFullName}: No linked workspaceRepo found.`);
+            return res.status(404).json({ error: "Repository configuration not found for this workspace" });
+        }
+
+        const workspaceId = workspaceRepo.workspaceId;
+
+        // Verify with JIRA API - Ground Truth Check
+        const jiraIntegration = await DB.integrations.findOne({
+            where: { userId: workspaceRepo.assignedBy, type: 'jira' }
+        });
+
+        if (!jiraIntegration) {
+            console.error(`No Jira integration found for user ${workspaceRepo.assignedBy}`);
+            return res.status(403).json({ error: "Jira integration not found for workspace assigner" });
+        }
+
+        let cloudId;
+        let activeTasks;
+
+        const linkedBoardIds = workspaceRepo.workspaceRepoBoards?.map(b => b.jiraBoard?.boardId) || [];
+        console.log(`Webhook fetching tasks for linked boards: [${linkedBoardIds.join(", ")}]`);
+
+        try {
+            cloudId = await getJiraCloudId(jiraIntegration.accessToken);
+            if (!cloudId) throw new Error("No cloud ID found");
+            activeTasks = await fetchActiveJiraTasks(jiraIntegration.accessToken, cloudId, linkedBoardIds);
+        } catch (e) {
+            if (e.message === "401") {
+                console.log("Jira Access Token expired. Attempting refresh...");
+                const newAccessToken = await refreshJiraToken(jiraIntegration);
+                cloudId = await getJiraCloudId(newAccessToken);
+                activeTasks = await fetchActiveJiraTasks(newAccessToken, cloudId, linkedBoardIds);
+            } else {
+                throw e;
             }
-            return res.status(200).json({ status: 'linked_direct', jiraIds });
         }
 
-        // 2. Fallback: Semantic search for candidate tickets
-        const prEmbedding = await generateEmbedding(prDescription); 
-        
-        // Search contextNodes
-        const candidates = await hybridSearch(
-            prDescription, 
-            prEmbedding, 
-            workspaceId, 
-            { limit: 3 }
-        );
+        const activeTaskKeys = activeTasks.map(t => t.key);
+        console.log("Active Jira Tasks identified from Board:", activeTaskKeys.join(", "));
 
-        const topMatch = candidates.find(c => c.type === 'jira');
-        const confidence = topMatch ? (topMatch.rankScore || 0) : 0;
+        // 2. Check Branch Name against REAL task ID list from Jira (No Assuming)
+        if (action === "opened" || action === "synchronize" || action === "reopened") {
+            const branchMatches = activeTaskKeys.filter(key => branchName.includes(key));
 
-        // Arbitrary threshold for POC
-        if (confidence < 0.7) {
-            // 4. Trigger Slack DM request
-            await triggerSlackRequest(
-                pull_request.user?.login || 'unknown',
-                `Hey! You just merged PR #${pull_request.number}, but I couldn't find a matching Jira ticket. Was it for KOR-XXX?`,
-                workspaceId
-            );
-            return res.status(200).json({ status: 'slack_request_sent' });
+            if (branchMatches.length === 0) {
+                // 3. Create SOP Guard entry
+                const reason = "Jira Link Broken - Invalid Branch Name";
+                const detail = `The branch \`${branchName}\` does not correspond to any active tasks in the Jira board. Found active tasks: [${activeTaskKeys.join(", ") || 'None Found'}].`;
+
+                await DB.sopGuard.create({
+                    workspaceId,
+                    workspaceRepoId: workspaceRepo.id,
+                    slackChannelId: workspaceRepo.slackChannelId,
+                    prId,
+                    branchName,
+                    jiraTaskIds: "",
+                    status: 'failed',
+                    reason: detail
+                });
+
+                await triggerSopGuard(
+                    pull_request,
+                    repository,
+                    workspaceId,
+                    reason,
+                    detail
+                );
+
+                return res.status(200).json({ status: 'sop_failed', branchName, activeTasks: activeTaskKeys });
+            } else {
+                // Success log
+                await DB.sopGuard.create({
+                    workspaceId,
+                    workspaceRepoId: workspaceRepo.id,
+                    slackChannelId: workspaceRepo.slackChannelId,
+                    prId,
+                    branchName,
+                    jiraTaskIds: branchMatches.join(", "),
+                    status: 'passed'
+                });
+
+                return res.status(200).json({ status: 'sop_passed', jiraIds: branchMatches });
+            }
         }
 
-        // 5. Link with confidence
-        if (topMatch) {
-            await linkPrToJira(prId, topMatch.metadata?.key || `ticket-${topMatch.id}`, workspaceId, confidence);
-            return res.status(200).json({ status: 'linked_semantic', candidateId: topMatch.id });
-        }
-
-        return res.status(200).json({ status: 'no_match_found' });
+        return res.status(200).json({ status: 'processed', action });
     } catch (err) {
-        console.error("Webhook processing error: ", err);
+        console.error("Webhook Error: ", err.message);
+        try {
+            // 4. Log Error in sopGuard table
+            if (payload.pull_request) {
+                const repoName = payload.repository?.full_name;
+                const wsRepo = await DB.workspaceRepos.findOne({
+                    where: { repoFullName: repoName }
+                });
+
+                await DB.sopGuard.create({
+                    workspaceId: wsRepo?.workspaceId || 0,
+                    workspaceRepoId: wsRepo?.id,
+                    slackChannelId: wsRepo?.slackChannelId,
+                    prId: payload.pull_request.html_url,
+                    branchName: payload.pull_request.head?.ref || "unknown",
+                    status: 'error',
+                    error: err.message
+                });
+            }
+        } catch (dbErr) {
+            console.error("Critical: Could not log error to sopGuard table", dbErr.message);
+        }
         return res.status(500).json({ error: err.message });
     }
 };

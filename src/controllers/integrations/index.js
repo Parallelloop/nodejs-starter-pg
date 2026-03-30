@@ -17,7 +17,9 @@ import GetSlackChannels from "./slack-get-channels";
 import LinkRepoSlack from "./link-repo-slack";
 import ClickupAuth from "./clickup-auth";
 import ClickupCallback from "./clickup-callback";
-
+import SyncJiraBoards from "./jira-sync-boards";
+import JiraGetBoards from "./jira-get-boards";
+import LinkRepoBoard from "./link-repo-board";
 export {
   ConnectIntegration,
   GetIntegrationsStatus,
@@ -38,4 +40,7 @@ export {
   LinkRepoSlack,
   ClickupAuth,
   ClickupCallback,
+  SyncJiraBoards,
+  JiraGetBoards,
+  LinkRepoBoard,
 };

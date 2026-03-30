@@ -45,6 +45,7 @@ const WorkspaceRepos = (sequelize, DataTypes) => {
     WorkspaceRepos.belongsTo(models.workspaces, { foreignKey: "workspaceId" });
     WorkspaceRepos.belongsTo(models.users, { foreignKey: "assignedBy", as: "assigner" });
     WorkspaceRepos.belongsTo(models.slackChannels, { foreignKey: "slackChannelId", as: "slackChannel" });
+    WorkspaceRepos.hasMany(models.workspaceRepoBoards, { foreignKey: "workspaceRepoId", as: "workspaceRepoBoards" });
   };
 
   return WorkspaceRepos;
