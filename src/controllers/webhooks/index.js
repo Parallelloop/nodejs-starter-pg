@@ -1,3 +1,7 @@
-import HandlePrMerge from "./github";
+import HandleGithubWebhook from "./github";
+import HandleGoogleWebhook from "./google";
 
-export { HandlePrMerge };
+export { 
+    HandleGithubWebhook,
+    HandleGoogleWebhook
+};

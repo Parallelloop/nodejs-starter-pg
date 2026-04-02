@@ -85,7 +85,6 @@ export async function fetchActiveJiraTasks(accessToken, cloudId, filterBoardIds 
       );
 
       allIssues = searchResp.data.issues || [];
-      console.log("ALL ISSUES", JSON.stringify(allIssues, null, 2));
       console.log(`Fetched ${allIssues.length} issues using global project keys for Jira Boards.`);
     }
 
@@ -96,6 +95,7 @@ export async function fetchActiveJiraTasks(accessToken, cloudId, filterBoardIds 
     }
 
     const uniqueIssues = Array.from(uniqueIssuesMap.values());
+    console.log("ISSUES : ", JSON.stringify(uniqueIssues, null, 2))
     console.log(`JIRA Search API Success: Found ${uniqueIssues.length} total unique issues for the board context.`);
 
     const keysFound = uniqueIssues.map(i => i.key);

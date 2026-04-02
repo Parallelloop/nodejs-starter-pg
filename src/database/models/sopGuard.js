@@ -24,6 +24,10 @@ const SopGuard = (sequelize, DataTypes) => {
       },
       allowNull: true,
     },
+    commitId: {
+      type: DataTypes.STRING(2000), // Store Commit URL
+      allowNull: true,
+    },
     prId: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -48,12 +52,33 @@ const SopGuard = (sequelize, DataTypes) => {
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    severity: {
+      type: DataTypes.STRING(20),
+      defaultValue: "low", // high, medium, low
+    },
+    justification: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    triggeredBy: {
+      type: DataTypes.STRING(500),
+      allowNull: false
+    },
+    doneBy: {
+      type: DataTypes.INTEGER,
+      references: {
+        model: "users",
+        key: "id",
+      },
+      allowNull: true,
+    },
   });
 
   SopGuard.associate = (models) => {
     SopGuard.belongsTo(models.workspaces, { foreignKey: "workspaceId" });
     SopGuard.belongsTo(models.workspaceRepos, { foreignKey: "workspaceRepoId" });
     SopGuard.belongsTo(models.slackChannels, { foreignKey: "slackChannelId" });
+    SopGuard.belongsTo(models.users, { foreignKey: "doneBy", as: "user" });
   };
 
   return SopGuard;

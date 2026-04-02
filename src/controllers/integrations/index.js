@@ -20,10 +20,16 @@ import ClickupCallback from "./clickup-callback";
 import SyncJiraBoards from "./jira-sync-boards";
 import JiraGetBoards from "./jira-get-boards";
 import LinkRepoBoard from "./link-repo-board";
+import DisconnectIntegration from "./disconnect-integration";
+import GoogleAuth from "./google-auth";
+import GoogleCallback from "./google-callback";
+import CreateMeeting from "./google-create-meeting";
+
 export {
   ConnectIntegration,
   GetIntegrationsStatus,
   RefreshIntegrationToken,
+  DisconnectIntegration,
   GitHubAuth,
   GitHubCallback,
   GetGitHubRepoStats,
@@ -43,4 +49,7 @@ export {
   SyncJiraBoards,
   JiraGetBoards,
   LinkRepoBoard,
+  GoogleAuth,
+  GoogleCallback,
+  CreateMeeting
 };

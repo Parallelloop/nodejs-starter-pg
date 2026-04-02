@@ -18,7 +18,13 @@ const JiraAuth = (req, res) => {
     "read:project:jira-software",
     "read:sprint:jira-software",
     "read:source-code:jira-software",
-    "write:source-code:jira-software"
+    "write:source-code:jira-software",
+    "read:confluence-content.all",
+    "read:confluence-content.summary",
+    "read:confluence-space.summary",
+    "write:confluence-content",
+    "search:confluence",
+    "read:confluence-user"
   ].join("%20");
 
   const authUrl = `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${clientId}&scope=${scopes}&redirect_uri=${redirectUri}&state=${state}&response_type=code&prompt=consent`;

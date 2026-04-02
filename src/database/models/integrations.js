@@ -1,7 +1,7 @@
 const Integrations = (sequelize, DataTypes) => {
   const Integrations = sequelize.define("integrations", {
     type: {
-      type: DataTypes.ENUM("github", "slack", "jira", "clickup"),
+      type: DataTypes.ENUM("github", "slack", "jira", "clickup", "google"),
       allowNull: false,
     },
     accessToken: {

@@ -22,10 +22,33 @@ const DecisionLogs = (sequelize, DataTypes) => {
     linkedPrId: {
       type: DataTypes.STRING(100),
     },
+    sopGuardId: {
+      type: DataTypes.INTEGER,
+      references: {
+        model: "sopGuards",
+        key: "id",
+      },
+      allowNull: true,
+    },
+    userId: {
+      type: DataTypes.INTEGER,
+      references: {
+        model: "users",
+        key: "id",
+      },
+      allowNull: true,
+    },
+    category: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: "architecture",
+    },
   });
 
   DecisionLogs.associate = (models) => {
     DecisionLogs.belongsTo(models.workspaces, { foreignKey: "workspaceId", as: "workspace" });
+    DecisionLogs.belongsTo(models.sopGuard, { foreignKey: "sopGuardId", as: "sopGuard" });
+    DecisionLogs.belongsTo(models.users, { foreignKey: "userId", as: "user" });
   };
 
   return DecisionLogs;

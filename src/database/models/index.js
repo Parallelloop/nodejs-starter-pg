@@ -11,6 +11,7 @@ import slackChannels from "./slackChannels";
 import sopGuard from "./sopGuard";
 import jiraBoards from "./jiraBoards";
 import workspaceRepoBoards from "./workspaceRepoBoards";
+import meetings from "./meetings";
 
 export {
   users,
@@ -25,5 +26,6 @@ export {
   slackChannels,
   sopGuard,
   jiraBoards,
-  workspaceRepoBoards
+  workspaceRepoBoards,
+  meetings
 };

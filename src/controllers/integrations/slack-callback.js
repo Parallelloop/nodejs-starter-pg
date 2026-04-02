@@ -5,10 +5,11 @@ const SlackCallback = async (req, res) => {
   const appLink = process.env.APP_LINK || "http://localhost:3000";
   try {
     const { code, state, error, error_description } = req.query;
+    const msg = error_description || error;
 
-    if (!code || !state) {
-      const msg = encodeURIComponent(error_description || error || "Authorization cancelled");
-      return res.redirect(`${appLink}/app/settings?tab=integrations&success=false&message=${msg}`);
+    if (error || !code || !state) {
+      const errorMsg = encodeURIComponent(msg || "Authorization cancelled");
+      return res.redirect(`${appLink}/app/settings?tab=integrations&success=false&message=${errorMsg}`);
     }
 
     const { userId } = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));

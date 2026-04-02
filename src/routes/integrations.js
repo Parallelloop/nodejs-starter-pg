@@ -5,6 +5,7 @@ import {
   ConnectIntegration,
   GetIntegrationsStatus,
   RefreshIntegrationToken,
+  DisconnectIntegration,
   GitHubAuth, GitHubCallback,
   SlackAuth, SlackCallback,
   SlackSyncChannels, GetSlackChannels, LinkRepoSlack,
@@ -12,7 +13,8 @@ import {
   ClickupAuth, ClickupCallback,
   SyncGitHubRepos, GetGitHubRepos,
   GetWorkspaceRepo, AssignWorkspaceRepo, GetGitHubRepoStats,
-  SyncJiraBoards, JiraGetBoards, LinkRepoBoard
+  SyncJiraBoards, JiraGetBoards, LinkRepoBoard,
+  GoogleAuth, GoogleCallback, CreateMeeting
 } from "../controllers/integrations";
 
 const router = express.Router();
@@ -21,18 +23,24 @@ const router = express.Router();
 router.post("/connect", authenticateAuthToken, ConnectIntegration);
 router.get("/status", authenticateAuthToken, GetIntegrationsStatus);
 router.post("/refresh", authenticateAuthToken, RefreshIntegrationToken);
+router.post("/disconnect", authenticateAuthToken, DisconnectIntegration);
 
 // Auth Initializer Routes (Requires user token)
 router.get("/github/auth", authenticateAuthToken, GitHubAuth);
 router.get("/slack/auth", authenticateAuthToken, SlackAuth);
 router.get("/jira/auth", authenticateAuthToken, JiraAuth);
 router.get("/clickup/auth", authenticateAuthToken, ClickupAuth);
+router.get("/google/auth", authenticateAuthToken, GoogleAuth);
 
 // OAuth Callback Routes (No user token header since browser redirects natively)
 router.get("/github/callback", GitHubCallback);
 router.get("/slack/callback", SlackCallback);
 router.get("/jira/callback", JiraCallback);
 router.get("/clickup/callback", ClickupCallback);
+router.get("/google/callback", GoogleCallback);
+
+// Meet / Meetings
+router.post("/google/create-meeting", authenticateAuthToken, CreateMeeting);
 
 // GitHub Repo Sync & Workspace Assignment
 router.post("/github/sync-repos", authenticateAuthToken, SyncGitHubRepos);

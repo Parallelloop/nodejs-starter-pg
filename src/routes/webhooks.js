@@ -1,8 +1,9 @@
 import express from "express";
-import { HandlePrMerge } from "../controllers/webhooks";
+import { HandleGithubWebhook, HandleGoogleWebhook } from "../controllers/webhooks";
 
 const router = express.Router();
 
-router.post("/github", HandlePrMerge);
+router.post("/github", HandleGithubWebhook);
+router.post("/google", HandleGoogleWebhook);
 
 export default router;
