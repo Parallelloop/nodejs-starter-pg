@@ -14,7 +14,9 @@ import {
   SyncGitHubRepos, GetGitHubRepos,
   GetWorkspaceRepo, AssignWorkspaceRepo, GetGitHubRepoStats,
   SyncJiraBoards, JiraGetBoards, LinkRepoBoard,
-  GoogleAuth, GoogleCallback, CreateMeeting
+  SyncConfluenceSpaces, ConfluenceGetSpaces, LinkRepoSpace,
+  GoogleAuth, GoogleCallback, CreateMeeting,
+  GoogleBotStart, GoogleBotStop, GoogleBotStatus
 } from "../controllers/integrations";
 
 const router = express.Router();
@@ -41,6 +43,9 @@ router.get("/google/callback", GoogleCallback);
 
 // Meet / Meetings
 router.post("/google/create-meeting", authenticateAuthToken, CreateMeeting);
+router.post("/google/bot/start", authenticateAuthToken, GoogleBotStart);
+router.post("/google/bot/stop", authenticateAuthToken, GoogleBotStop);
+router.get("/google/bot/status", authenticateAuthToken, GoogleBotStatus);
 
 // GitHub Repo Sync & Workspace Assignment
 router.post("/github/sync-repos", authenticateAuthToken, SyncGitHubRepos);
@@ -57,5 +62,9 @@ router.post("/workspace-repo/link-slack", authenticateAuthToken, LinkRepoSlack);
 router.post("/jira/sync-boards", authenticateAuthToken, SyncJiraBoards);
 router.get("/jira/boards", authenticateAuthToken, JiraGetBoards);
 router.post("/workspace-repo/link-jira", authenticateAuthToken, LinkRepoBoard);
+
+router.post("/confluence/sync-spaces", authenticateAuthToken, SyncConfluenceSpaces);
+router.get("/confluence/spaces", authenticateAuthToken, ConfluenceGetSpaces);
+router.post("/workspace-repo/link-confluence", authenticateAuthToken, LinkRepoSpace);
 
 export default router;

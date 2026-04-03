@@ -13,6 +13,11 @@ const GetWorkspaceRepo = async (req, res) => {
           model: DB.workspaceRepoBoards, 
           as: "workspaceRepoBoards",
           include: [{ model: DB.jiraBoards, as: "jiraBoard" }]
+        },
+        { 
+          model: DB.workspaceRepoSpaces, 
+          as: "workspaceRepoSpaces",
+          include: [{ model: DB.confluenceSpaces, as: "confluenceSpace" }]
         }
       ]
     });

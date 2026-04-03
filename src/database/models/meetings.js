@@ -59,6 +59,10 @@ const Meetings = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 0,
     },
+    conversation: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
   });
 
   Meetings.associate = (models) => {

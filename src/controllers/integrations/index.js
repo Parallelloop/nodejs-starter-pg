@@ -21,9 +21,15 @@ import SyncJiraBoards from "./jira-sync-boards";
 import JiraGetBoards from "./jira-get-boards";
 import LinkRepoBoard from "./link-repo-board";
 import DisconnectIntegration from "./disconnect-integration";
+import SyncConfluenceSpaces from "./confluence-sync-spaces";
+import ConfluenceGetSpaces from "./confluence-get-spaces";
+import LinkRepoSpace from "./link-repo-space";
 import GoogleAuth from "./google-auth";
 import GoogleCallback from "./google-callback";
 import CreateMeeting from "./google-create-meeting";
+import GoogleBotStart from "./google-bot-start";
+import GoogleBotStop from "./google-bot-stop";
+import GoogleBotStatus from "./google-bot-status";
 
 export {
   ConnectIntegration,
@@ -49,7 +55,13 @@ export {
   SyncJiraBoards,
   JiraGetBoards,
   LinkRepoBoard,
+  SyncConfluenceSpaces,
+  ConfluenceGetSpaces,
+  LinkRepoSpace,
   GoogleAuth,
   GoogleCallback,
-  CreateMeeting
+  CreateMeeting,
+  GoogleBotStart,
+  GoogleBotStop,
+  GoogleBotStatus
 };

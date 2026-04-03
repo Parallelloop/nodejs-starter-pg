@@ -12,6 +12,9 @@ import sopGuard from "./sopGuard";
 import jiraBoards from "./jiraBoards";
 import workspaceRepoBoards from "./workspaceRepoBoards";
 import meetings from "./meetings";
+import confluenceSpaces from "./confluenceSpaces";
+import workspaceRepoSpaces from "./workspaceRepoSpaces";
+import repoTasks from "./repoTasks";
 
 export {
   users,
@@ -27,5 +30,8 @@ export {
   sopGuard,
   jiraBoards,
   workspaceRepoBoards,
-  meetings
+  meetings,
+  confluenceSpaces,
+  workspaceRepoSpaces,
+  repoTasks
 };

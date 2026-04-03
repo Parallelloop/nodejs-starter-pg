@@ -1,5 +1,6 @@
 import DB from "../../database";
 import axios from "axios";
+import { launchBot, activeBotSessions } from "../../utils/google-bot";
 
 /**
  * Handle Google Cloud Pub/Sub Push Notifications
@@ -118,11 +119,14 @@ const handleConferenceStarted = async (conferenceRecordId, conferenceRecordName)
   if (meeting) {
     meeting.status = "active";
     meeting.startedAt = new Date();
-    await meeting.save();
-    console.log(`=> Meeting #${meeting.id} marked as ACTIVE`);
+    
+    // Launch Kore Note Taker Bot automatically when meeting starts
+    await ensureBotJoined(meeting);
 
     // Notify Slack about meeting going live
     await notifySlack(meeting, `🟢 *Meeting is live!* "${meeting.summary}" has started.\n🔗 ${meeting.meetingUrl}`);
+    await meeting.save();
+    console.log(`=> Meeting #${meeting.id} marked as ACTIVE`);
   } else {
     console.log(`=> No matching meeting record found for conference: ${conferenceRecordId}`);
   }
@@ -171,6 +175,9 @@ const handleParticipantJoined = async (conferenceRecordId, participantId, partic
     meeting.participantCount = (meeting.participantCount || 0) + 1;
     await meeting.save();
     console.log(`=> Meeting #${meeting.id} participant count: ${meeting.participantCount}`);
+
+    // Resilience: Try to launch bot if it's not already there
+    await ensureBotJoined(meeting);
   } else {
     console.log(`=> No matching meeting record found for conference: ${conferenceRecordId}`);
   }
@@ -193,6 +200,35 @@ const handleParticipantLeft = async (conferenceRecordId, participantId, particip
     console.log(`=> Meeting #${meeting.id} participant count: ${meeting.participantCount}`);
   } else {
     console.log(`=> No matching meeting record found for conference: ${conferenceRecordId}`);
+  }
+};
+
+/**
+ * Helper: Ensures the bot is launched for a given meeting
+ */
+const ensureBotJoined = async (meeting) => {
+  if (!meeting?.id || !meeting.meetingUrl) return;
+
+  // ONLY join if at least one participant is present
+  if ((meeting.participantCount || 0) < 1) {
+    console.log(`[GoogleWebhook] Skipping bot launch for session mtg-${meeting.id} - room is empty.`);
+    return;
+  }
+
+  const botSessionId = `mtg-${meeting.id}`;
+  if (!activeBotSessions.has(botSessionId)) {
+    console.log(`[GoogleWebhook] Scheduling resilient bot launch for session ${botSessionId} in 10s...`);
+    
+    // Small delay to ensure the host has fully joined and lobby is ready
+    setTimeout(() => {
+      // Re-verify session hasn't started in the meantime
+      if (!activeBotSessions.has(botSessionId)) {
+        launchBot(meeting.meetingUrl, botSessionId).catch(err => {
+          console.error(`[GoogleWebhook] Resilient bot launch failed:`, err.message);
+          activeBotSessions.delete(botSessionId);
+        });
+      }
+    }, 10000);
   }
 };
 

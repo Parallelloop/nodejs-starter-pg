@@ -38,6 +38,61 @@ export async function fetchJiraBoards(accessToken, cloudId) {
   }
 }
 
+export async function getConfluenceCloudId(accessToken) {
+  try {
+    const response = await axios.get("https://api.atlassian.com/oauth/token/accessible-resources", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    });
+    console.log("Confluence Accessible Resources:", JSON.stringify(response.data, null, 2));
+    // Find a resource that has confluence scopes
+    const confResource = response.data.find(r => r.scopes.some(s => s.includes("confluence")));
+    if (confResource) {
+      console.log("Found explicitly Confluence Cloud ID:", confResource.id);
+      return confResource.id;
+    }
+    return response.data[0]?.id;
+  } catch (err) {
+    console.error("Failed to fetch Confluence Cloud ID:", err.message);
+    return null;
+  }
+}
+
+export async function fetchConfluenceSpaces(accessToken, cloudId) {
+  try {
+    let url = `https://api.atlassian.com/ex/confluence/${cloudId}/rest/api/search?cql=${encodeURIComponent('type=page')}&limit=100`;
+    console.log(`Fetching Confluence pages via: ${url}`);
+
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    });
+
+    console.log("Confluence Pages Response:", JSON.stringify(response.data.results?.[0] || response.data, null, 2));
+
+    const results = response.data.results || [];
+    // Extract actual content from search payload
+    return results.map(item => {
+      // The search endpoint nests the page info in .content, but fallback to item
+      const content = item.content || item;
+      return {
+        id: content.id || item.id,
+        title: content.title || item.title || "Untitled Document",
+        type: content.type || "page"
+      };
+    }).filter(p => p.id);
+  } catch (err) {
+    if (err.response?.status === 401) throw new Error("401");
+    console.error("Failed to fetch Confluence Pages. Status Code:", err.response?.status, "Data:", JSON.stringify(err.response?.data));
+    return [];
+  }
+}
+
+
 export async function fetchActiveJiraTasks(accessToken, cloudId, filterBoardIds = null) {
   try {
     let boards = await fetchJiraBoards(accessToken, cloudId);
@@ -95,7 +150,7 @@ export async function fetchActiveJiraTasks(accessToken, cloudId, filterBoardIds 
     }
 
     const uniqueIssues = Array.from(uniqueIssuesMap.values());
-    console.log("ISSUES : ", JSON.stringify(uniqueIssues, null, 2))
+    // console.log("ISSUES : ", JSON.stringify(uniqueIssues, null, 2))
     console.log(`JIRA Search API Success: Found ${uniqueIssues.length} total unique issues for the board context.`);
 
     const keysFound = uniqueIssues.map(i => i.key);
@@ -142,5 +197,30 @@ export async function refreshJiraToken(integration) {
   } catch (err) {
     console.error("Critical: Jira token refresh failed:", JSON.stringify(err.response?.data || err.message));
     throw err;
+  }
+}
+
+export async function fetchConfluencePageContent(accessToken, cloudId, pageId) {
+  try {
+    // Using search with CQL id=... is often more robust than direct /content/{id} which can return 410 Gone
+    const url = `https://api.atlassian.com/ex/confluence/${cloudId}/rest/api/search?cql=id="${pageId}"&expand=content.body.storage`;
+    console.log(`Fetching Confluence Page Content via search/CQL: ${url}`);
+    
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    });
+    
+    const results = response.data.results || [];
+    if (results.length > 0) {
+      const content = results[0].content || results[0];
+      return content;
+    }
+    return null;
+  } catch (err) {
+    console.error(`Failed to fetch Confluence Page Content for ${pageId}: Status ${err.response?.status} - ${err.message}`);
+    return null;
   }
 }

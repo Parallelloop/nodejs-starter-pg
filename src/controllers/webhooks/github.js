@@ -1,8 +1,153 @@
 import DB from "../../database";
-import { getJiraCloudId, fetchActiveJiraTasks, refreshJiraToken } from "../../utils/jira";
+import { getJiraCloudId, fetchActiveJiraTasks, refreshJiraToken, fetchConfluencePageContent, getConfluenceCloudId } from "../../utils/jira";
+import { fetchSlackMessages } from "../../utils/slack";
 import { generateEmbedding } from "../../utils/embeddings";
 import { lazyMessages } from "../../utils/constants";
 
+
+const generateAITaskFile = async (data) => {
+    // This function will eventually use LLM to generate task.md
+    // For now it is just a placeholder to be implemented/commented out as requested
+    console.log("Generating AI task execution placeholder...");
+    return `AI Task generated for branch ${data.branchName} using ${data.slackMessages.length} slack messages, ${data.confluencePages.length} confluence pages, and Jira description.`;
+};
+
+const gatherTaskContext = async ({ workspaceRepo, branchName, sender }) => {
+    // 1. Check if task already generated
+    const existingTask = await DB.repoTasks.findOne({
+        where: { workspaceRepoId: workspaceRepo.id, branchName }
+    });
+
+    if (existingTask && existingTask.inTaskGenerated) {
+        console.log(`Task already generated for branch: ${branchName}. Skipping.`);
+        return null;
+    }
+
+    // 2. Try matching branch name with JIRA key
+    const jiraIntegration = await DB.integrations.findOne({
+        where: { userId: workspaceRepo.assignedBy, type: 'jira' }
+    });
+
+    if (!jiraIntegration) return null;
+
+    const linkedBoardIds = workspaceRepo.workspaceRepoBoards?.map(b => b.jiraBoard?.boardId) || [];
+    let cloudId;
+    let activeTasks = [];
+    try {
+        cloudId = await getJiraCloudId(jiraIntegration.accessToken);
+        activeTasks = await fetchActiveJiraTasks(jiraIntegration.accessToken, cloudId, linkedBoardIds);
+    } catch (e) {
+        if (e.message === "401") {
+            const newAccessToken = await refreshJiraToken(jiraIntegration);
+            cloudId = await getJiraCloudId(newAccessToken);
+            activeTasks = await fetchActiveJiraTasks(newAccessToken, cloudId, linkedBoardIds);
+        }
+    }
+
+    const matchedTask = activeTasks.find(t => t.key.toLowerCase() === branchName.toLowerCase());
+    if (!matchedTask) return null;
+
+    console.log(`Matched Jira Task: ${matchedTask.key} for Branch: ${branchName}`);
+
+    // --- GATHER JIRA DESCRIPTION ---
+    const rawJiraDesc = matchedTask?.fields?.description;
+    let cleanJiraDesc = "";
+    if (typeof rawJiraDesc === 'string') {
+        cleanJiraDesc = rawJiraDesc;
+    } else if (rawJiraDesc && typeof rawJiraDesc === 'object') {
+        try {
+            const extractText = (obj) => {
+                if (obj.text) return obj.text;
+                if (obj.content && Array.isArray(obj.content)) {
+                    return obj.content.map(extractText).join(" ");
+                }
+                return "";
+            };
+            cleanJiraDesc = extractText(rawJiraDesc);
+        } catch (e) { cleanJiraDesc = ""; }
+    }
+
+    // --- GATHER SLACK MESSAGES ---
+    let slackMsgs = [];
+    const slackIntegration = await DB.integrations.findOne({
+        where: { userId: workspaceRepo.assignedBy, type: 'slack' }
+    });
+
+    if (slackIntegration && workspaceRepo.slackChannelId) {
+        const channel = await DB.slackChannels.findByPk(workspaceRepo.slackChannelId);
+        if (channel) {
+            const rawMsgs = await fetchSlackMessages(slackIntegration.accessToken, channel.channelId);
+            slackMsgs = rawMsgs.map(m => `[${m.user}]: ${m.text}`);
+        }
+    }
+
+    // --- GATHER CONFLUENCE CONTENT ---
+    let confluencePages = [];
+    const confluenceLinks = await DB.workspaceRepoSpaces.findAll({
+        where: { workspaceRepoId: workspaceRepo.id },
+        include: [{ model: DB.confluenceSpaces, as: "confluenceSpace" }]
+    });
+
+    console.log(`Found ${confluenceLinks.length} potential Confluence links in DB for repo ID ${workspaceRepo.id}`);
+
+    if (confluenceLinks.length > 0) {
+        let confluenceCloudId = await getConfluenceCloudId(jiraIntegration.accessToken);
+        if (!confluenceCloudId) {
+            console.warn("Could not determine Confluence-specific Cloud ID. Falling back to default.");
+            confluenceCloudId = cloudId;
+        }
+
+        for (const link of confluenceLinks) {
+            if (link.confluenceSpace) {
+                console.log(`Fetching Confluence Page: ${link.confluenceSpace.name} (ID: ${link.confluenceSpace.spaceId})`);
+                const pageContent = await fetchConfluencePageContent(jiraIntegration.accessToken, confluenceCloudId, link.confluenceSpace.spaceId);
+                if (pageContent) {
+                    const pageBody = pageContent.body?.storage?.value || "";
+                    console.log(`Successfully fetched content for page: ${pageContent.title} (Length: ${pageBody.length})`);
+                    confluencePages.push({
+                        title: pageContent.title,
+                        body: pageBody
+                    });
+                } else {
+                    console.error(`Failed to fetch body for page ID: ${link.confluenceSpace.spaceId} after search attempt.`);
+                }
+            } else {
+                console.warn("Confluence link found but no associated confluenceSpace metadata in DB.");
+            }
+        }
+    }
+
+    // --- LOG CONSTRUCTED DATA ---
+    console.log("=========================================");
+    console.log(`FULL CONTEXT DATA FOR BRANCH: ${branchName}`);
+    console.log("JIRA DESCRIPTION:", cleanJiraDesc);
+    console.log("-----------------------------------------");
+    console.log("SLACK MESSAGES:");
+    if (slackMsgs.length === 0) {
+        console.log("(No slack messages found or linked channel empty)");
+    } else {
+        slackMsgs.forEach(m => console.log(m));
+    }
+    console.log("-----------------------------------------");
+    console.log("CONFLUENCE CONTENT:");
+    if (confluencePages.length === 0) {
+        console.log("(No Confluence pages retrieved)");
+    } else {
+        confluencePages.forEach(p => {
+            console.log(`Page Title: ${p.title}`);
+            console.log(`Page Content: ${p.body}`);
+        });
+    }
+    console.log("=========================================");
+
+    return {
+        branchName,
+        jiraKey: matchedTask.key,
+        jiraDescription: cleanJiraDesc,
+        slackMessages: slackMsgs,
+        confluencePages: confluencePages
+    };
+};
 
 
 const HandleGithubWebhook = async (req, res) => {
@@ -79,7 +224,12 @@ const HandleGithubWebhook = async (req, res) => {
                     }
                 }
             }
+
+            // --- AI TASK GENERATION LOGIC ---
+            await gatherTaskContext({ workspaceRepo, branchName, sender });
+
             return res.status(200).json({ status: 'processed_push' });
+
         }
 
         // --- HANDLE PULL REQUEST EVENT ---
@@ -92,6 +242,11 @@ const HandleGithubWebhook = async (req, res) => {
             const pull_request = payload.pull_request;
             const prId = pull_request.html_url;
             const branchName = pull_request.head?.ref || "unknown";
+
+            // --- AI TASK GENERATION LOGIC ---
+            if (action === "opened" || action === "synchronize") {
+                await gatherTaskContext({ workspaceRepo, branchName, sender });
+            }
 
             // Verify with JIRA API - Ground Truth Check
             const jiraIntegration = await DB.integrations.findOne({
@@ -128,7 +283,7 @@ const HandleGithubWebhook = async (req, res) => {
 
             // --- DEFINE SOP RULES ---
             let justificationMessage = "Policy alignment verified through automated scan.";
-            
+
             // Handle Jira description (String or Atlassian Document Format)
             const rawJiraDesc = matchedTask?.fields?.description;
             let cleanJiraDesc = "";
@@ -152,7 +307,7 @@ const HandleGithubWebhook = async (req, res) => {
             }
 
             const jiraDescWords = cleanJiraDesc.trim().split(/\s+/).filter(w => w.length > 0).length;
-            
+
             const prBodyWords = (pull_request.body || "").trim().split(/\s+/).filter(w => w.length > 0).length;
             const prTitleWords = (pull_request.title || "").trim().split(/\s+/).filter(w => w.length > 0).length;
             const prTitleLower = (pull_request.title || "").toLowerCase();
